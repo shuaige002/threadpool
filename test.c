@@ -9,6 +9,8 @@ void example_task(void* arg) {
 
 int main() {
     ThreadPool* pool = create_thread_pool(2);
+    int num_processors = sysconf(_SC_NPROCESSORS_ONLN);
+    printf("CPU cero number: %d\n", num_processors);
 
     for (int i = 0; i < 15; i++) {
         int* num = malloc(sizeof(int));
