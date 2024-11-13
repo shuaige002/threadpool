@@ -21,7 +21,7 @@ static void* thread_function(void* arg) {
         }
 
         task = pool->tasks[pool->task_head];
-        pool->task_head = (pool->task_head + 1) % QUEUE_SIZE;
+        pool->task_head = (pool->task_head + 1) % pool->max_tasks;
         pool->task_count--;
 
         pthread_mutex_unlock(&pool->lock);
@@ -47,6 +47,7 @@ ThreadPool* create_thread_pool(int max_threads) {
     pool->shutdown = false;
     pool->force_shutdown = false;
     pool->max_threads = max_threads;
+    pool->max_tasks = (max_threads<<3);
  
     if (pthread_mutex_init(&pool->lock, NULL) != 0) {
         perror("Failed to initialize mutex");
@@ -61,11 +62,24 @@ ThreadPool* create_thread_pool(int max_threads) {
         return NULL;
     }
  
+    pool->tasks = (Task*)malloc((max_threads<<3) * sizeof(Task));
     pool->threads = (pthread_t*)malloc(max_threads * sizeof(pthread_t));
+
+    if (pool->tasks == NULL) {
+    perror("Failed to allocate memory for tasks");
+    pthread_mutex_destroy(&pool->lock);
+    pthread_cond_destroy(&pool->cond);
+    free(pool->threads);
+    free(pool);
+    return NULL;
+    }
+
+
     if (pool->threads == NULL) {
         perror("Failed to allocate memory for threads");
         pthread_mutex_destroy(&pool->lock);
         pthread_cond_destroy(&pool->cond);
+        free(pool->tasks);
         free(pool);
         return NULL;
     }
@@ -98,7 +112,7 @@ ThreadPool* create_thread_pool(int max_threads) {
 void add_task(ThreadPool* pool, void (*func)(void*), void* arg) {
     pthread_mutex_lock(&pool->lock);
 
-    if (pool->task_count == QUEUE_SIZE) {
+    if (pool->task_count == (pool->max_tasks)) {
         pthread_mutex_unlock(&pool->lock);
         fprintf(stderr, "Task queue is full!\n");
         return;
@@ -106,7 +120,7 @@ void add_task(ThreadPool* pool, void (*func)(void*), void* arg) {
 
     pool->tasks[pool->task_tail].func = func;
     pool->tasks[pool->task_tail].arg = arg;
-    pool->task_tail = (pool->task_tail + 1) % QUEUE_SIZE;
+    pool->task_tail = (pool->task_tail + 1) % pool->max_tasks;
     pool->task_count++;
 
     pthread_cond_signal(&pool->cond);
@@ -145,6 +159,10 @@ void destroy_thread_pool(ThreadPool* pool) {
         // 释放线程数组的内存
         if (pool->threads != NULL) {
             free(pool->threads);
+        }
+        // 释放任务数组的内存
+        if (pool->tasks != NULL) {
+            free(pool->tasks);
         }
  
         free(pool);

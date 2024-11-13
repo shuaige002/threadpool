@@ -1,15 +1,19 @@
 #include "thread_pool.h"
 #include <unistd.h>
 
+int num_processors;
+ThreadPool* pool = NULL;
+
 void example_task(void* arg) {
     int* num = (int*)arg;
     printf("Executing task with number: %d\n", *num);
-    sleep(1); // Simulate work
+    printf("max_tasks:%d\n",pool->max_tasks);
+    sleep(3); // Simulate work
 }
 
 int main() {
-    ThreadPool* pool = create_thread_pool(2);
-    int num_processors = sysconf(_SC_NPROCESSORS_ONLN);
+    num_processors = sysconf(_SC_NPROCESSORS_ONLN);
+    pool = create_thread_pool(num_processors);
     printf("CPU cero number: %d\n", num_processors);
 
     for (int i = 0; i < 15; i++) {

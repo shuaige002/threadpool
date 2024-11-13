@@ -6,7 +6,6 @@
 #ifndef _THREADPOOL_H_
 #define _THREADPOOL_H_
 
-#define QUEUE_SIZE 1000
 
 typedef struct {
     void (*func)(void*);
@@ -17,13 +16,14 @@ typedef struct {
     pthread_mutex_t lock;
     pthread_cond_t cond;
     pthread_t* threads;
-    Task tasks[QUEUE_SIZE];
+    Task *tasks;
     int task_count;
     int task_head;
     int task_tail;
     bool shutdown;
     bool force_shutdown;
     int max_threads;
+    int max_tasks;
 } ThreadPool;
 
 ThreadPool* create_thread_pool(int max_threads);
